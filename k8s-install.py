@@ -119,15 +119,6 @@ LAB_INFO = {
 	}
 }
 
-STARTUP_CMDS = [
-	"sed -i 's/#UseDNS yes/UseDNS no/' /etc/ssh/sshd_config",
-	"systemctl restart sshd"
-]
-
-KUBELET_CMDS = [
-	'/bin/cp -rf /etc/kubernetes/admin.conf $HOME/.kube/config',
-	'chown $(id -u):$(id -g) $HOME/.kube/config'
-]
 
 def custom_signal_handler(signal, frame):
 	"""Very terse custom signal handler
@@ -232,15 +223,18 @@ def deploy_ova(ova_name):
 			vmname = LAB_INFO['k8s-vm']['name']
 			info('unpacking {} to {}'.format(ova_name, vm_dir))
 			try:
-				call([ovftool, ova_path, vm_dir])
+				call_result = call([ovftool, ova_path, vm_dir])
+				if call_result == 1:
+					return False
 			except:
 				error("Importing OVA Failed.")
 				return False
 			info('OVA Unpacking completed!')
 			info('starting the VM')
 			try:
-				call([vmrun, 'start', vm_dir + os.sep + vmname + '.vmwarevm'])
-				return True
+				call_result = call([vmrun, 'start', vm_dir + os.sep + vmname + '.vmwarevm'])
+				if call_result == 1:
+					return False
 			except:
 				error("Starting VM Failed.")
 				return False
@@ -252,18 +246,22 @@ def deploy_ova(ova_name):
 			vmname = LAB_INFO['k8s-vm']['name']
 			info('unpacking {} to {}'.format(ova_name, vm_dir))
 			try:
-				call([ovftool, ova_path, vm_dir])
+				call_result = call([ovftool, ova_path, vm_dir])
+				if call_result == 1:
+					return False
 			except:
 				error("Importing OVA Failed.")
 				return False
 			info('OVA Unpacking completed!')
 			info('starting the VM')
 			try:
-				call([vmrun, 'start', vm_dir + os.sep + vmname + os.sep + vmname + '.vmx'])
-				return True
+				call_result = call([vmrun, 'start', vm_dir + os.sep + vmname + os.sep + vmname + '.vmx'])
+				if call_result == 1:
+					return False
 			except:
 				error("Starting VM Failed.")
 				return False
+		return True
 	except:
 		error("Sorry I can not deploy this ova image!")
 
@@ -282,11 +280,6 @@ def main():
 	#
 	signal_set_handler(signal_SIGINT, custom_signal_handler)
 
-	# url='http://mirror.seedvps.com/CentOS/7.8.2003/isos/x86_64/CentOS-7-x86_64-Minimal-2003.iso'
-	# dir_n='/Users/melamin/Data/scripts/k8siab/'
-	# filename='CentOS-7-x86_64-Minimal-2003.iso'
-	# download_file(url,dir_n,filename)
-
 	if deploy_ova(LAB_INFO['k8s-vm']['ova']):
 		info("k8s VM is deployed. waiting for the for ssh to be ready")
 		for x in range(10):
@@ -303,9 +296,6 @@ def main():
 			error("Something went wrong. I can not ssh to the VM.")
 
 		if ssh_conn:
-			# info("SSH is ready. Run startup  commands")
-			# for cmd in STARTUP_CMDS:
-			# 	run_ssh_command(ssh_conn, cmd)
 			info("Waiting for kubelet to be ready. It may take up to 5 min.")
 			for i in range(10):
 				cluster_ready = run_ssh_command(ssh_conn, "kubectl get nodes")
@@ -323,7 +313,9 @@ def main():
 			LAB_INFO['k8s-vm']['ip'],
 			LAB_INFO['k8s-vm']['pass']
 		))
-
+	else:
+		error("Something went wrong, exiting....")
+		sys.exit()
 
 if __name__ == "__main__":
 	main()
