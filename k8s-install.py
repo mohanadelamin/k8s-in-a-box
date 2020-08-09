@@ -21,7 +21,6 @@ from paramiko.ssh_exception import \
 	BadHostKeyException as SSH_BadHostKeyException, \
 	AuthenticationException as SSH_AuthenticationException, \
 	SSHException as SSH_SSHException
-from socket import error as socket_error
 
 from argparse import ArgumentParser
 from datetime import datetime as dt
@@ -104,7 +103,7 @@ LOGGING_LEVELS_MAP = {
 LAB_INFO = {
 	'k8s-vm'	: {
 		'name'	: 'k8s-lab',
-		'ova'	: 'k8s-lab.ova',
+		'ova'	: 'k8s-lab-v1.ova',
 		'user'	: 'root',
 		'pass'	: 'PaloAlto!123',
 		'ip'	: '192.168.55.144'
@@ -120,6 +119,26 @@ LAB_INFO = {
 		'vmrun'	: '/Applications/VMware Fusion.app/Contents/Library/vmrun'
 	}
 }
+
+STARTUP_CMDS = [
+	"sed -i 's/#UseDNS yes/UseDNS no/' /etc/ssh/sshd_config",
+	"systemctl restart sshd"
+]
+
+KUBELET_CMDS = [
+	'/bin/cp -rf /etc/kubernetes/admin.conf $HOME/.kube/config',
+	'chown $(id -u):$(id -g) $HOME/.kube/config'
+]
+
+def custom_signal_handler(signal, frame):
+	"""Very terse custom signal handler
+
+	This is used to avoid generating a long traceback/backtrace
+	"""
+
+	warn("Signal {} received, exiting".format(str(signal)))
+	sys.exit(1)
+
 
 def ssh_login(host, username, password):
 
@@ -148,6 +167,18 @@ def ssh_login(host, username, password):
 
 	info("SSH connection to {} opened successfully".format(host))
 	return r
+
+
+def run_ssh_command(ssh_conn, command):
+	if ssh_conn:
+		stdin, stdout, stderr = ssh_conn.exec_command(command)
+		ssh_error = stderr.read().decode()
+		if ssh_error:
+			error(ssh_error)
+			return False
+		else:
+			print(stdout.read().decode())
+			return True
 
 
 def download_file(file_url, dir, file_name):
@@ -184,7 +215,7 @@ def find_ova(ova_name):
 
 
 def deploy_ova(ova_name):
-	# try:
+	try:
 		info('Searching for the ova file {}'.format(ova_name))
 		ova_path = find_ova(ova_name)
 		if ova_path:
@@ -200,29 +231,41 @@ def deploy_ova(ova_name):
 			vmrun = LAB_INFO['macos']['vmrun']
 			vmname = LAB_INFO['k8s-vm']['name']
 			info('unpacking {} to {}'.format(ova_name, vm_dir))
-			call([ovftool, ova_path, vm_dir])
+			try:
+				call([ovftool, ova_path, vm_dir])
+			except:
+				error("Importing OVA Failed.")
+				return False
 			info('OVA Unpacking completed!')
 			info('starting the VM')
-			call([vmrun, 'start', vm_dir + os.sep + vmname + '.vmwarevm'])
+			try:
+				call([vmrun, 'start', vm_dir + os.sep + vmname + '.vmwarevm'])
+				return True
+			except:
+				error("Starting VM Failed.")
+				return False
 		else:
 			info('I am working on a Windows')
-
-		for x in range(10):
-			ssh_conn = ssh_login(LAB_INFO['k8s-vm']['ip'],LAB_INFO['k8s-vm']['user'],LAB_INFO['k8s-vm']['pass'])
-			if ssh_conn:
-				break
-			else:
-				info("Trying SSH connection again, retry #{}".format(x+1))
-
-		if ssh_conn:
-			stdin, stdout, stderr = ssh_conn.exec_command("hostname")
-			info(stdout.read().decode())
-			ssh_error = stderr.read().decode()
-			if ssh_error:
-				error(ssh_error)
-	# except:
-	# 	error("Sorry I can not deploy this ova image!")
-
+			vm_dir = get_user_home() + os.sep + LAB_INFO['windows']['vm_dir']
+			ovftool = LAB_INFO['windows']['ovftool']
+			vmrun = LAB_INFO['windows']['vmrun']
+			vmname = LAB_INFO['k8s-vm']['name']
+			info('unpacking {} to {}'.format(ova_name, vm_dir))
+			try:
+				call([ovftool, ova_path, vm_dir])
+			except:
+				error("Importing OVA Failed.")
+				return False
+			info('OVA Unpacking completed!')
+			info('starting the VM')
+			try:
+				call([vmrun, 'start', vm_dir + os.sep + vmname + '.vmwarevm'])
+				return True
+			except:
+				error("Starting VM Failed.")
+				return False
+	except:
+		error("Sorry I can not deploy this ova image!")
 
 
 def main():
@@ -259,14 +302,50 @@ def main():
 		format=fmt_str, level=logging_level_INFO,
 		stream=sys.stdout)
 
-	platform_check = system()
+	#
+	# The default signal handler for SIGINT / CTRL-C raises a KeyboardInterrupt
+	# exception which prints a possibly very long traceback. To avoid it we
+	# install a custom signal handler
+	#
+	signal_set_handler(signal_SIGINT, custom_signal_handler)
 
 	# url='http://mirror.seedvps.com/CentOS/7.8.2003/isos/x86_64/CentOS-7-x86_64-Minimal-2003.iso'
 	# dir_n='/Users/melamin/Data/scripts/k8siab/'
 	# filename='CentOS-7-x86_64-Minimal-2003.iso'
 	# download_file(url,dir_n,filename)
 
-	deploy_ova(LAB_INFO['k8s-vm']['ova'])
+	if deploy_ova(LAB_INFO['k8s-vm']['ova']):
+		info("k8s VM is deployed. waiting for the for ssh to be ready")
+		for x in range(10):
+			ssh_conn = ssh_login(LAB_INFO['k8s-vm']['ip'], LAB_INFO['k8s-vm']['user'], LAB_INFO['k8s-vm']['pass'])
+			if ssh_conn:
+				break
+			else:
+				info("Trying SSH connection again, retry #{}".format(x + 1))
+				time.sleep(5)
+			error("Something went wrong. I can not ssh to the VM.")
+
+		if ssh_conn:
+			# info("SSH is ready. Run startup  commands")
+			# for cmd in STARTUP_CMDS:
+			# 	run_ssh_command(ssh_conn, cmd)
+			info("Waiting for kubelet to be ready. It may take up to 5 min.")
+			for i in range(10):
+				cluster_ready = run_ssh_command(ssh_conn, "kubectl get nodes")
+				if cluster_ready:
+					break
+				else:
+					info("Checking cluster status. Retry #{} out of 10".format(i + 1))
+					time.sleep(60)
+
+		if not cluster_ready:
+			error("Something went wrong. try to login to the VM and debug it.")
+
+		info("You can now ssh to {}@{} using password {}".format(
+			LAB_INFO['k8s-vm']['user'],
+			LAB_INFO['k8s-vm']['ip'],
+			LAB_INFO['k8s-vm']['pass']
+		))
 
 
 if __name__ == "__main__":
