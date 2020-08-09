@@ -107,7 +107,8 @@ LAB_INFO = {
 	'ova_repo'	: 'https://www.github.com',
 	'windows'	: {
 		'vm_dir': 'Documents\Virtual Machines',
-		'ovftool': 'c:\Program Files (x86)\VMware\VMware Workstation\OVFTool\ovftool.exe'
+		'ovftool': 'c:\Program Files (x86)\VMware\VMware Workstation\OVFTool\ovftool.exe',
+		'vmrun' : 'c:\Program Files (x86)\VMware\VMware Workstation\\vmrun.exe'
 	},
 	'macos'		: {
 		'vm_dir': 'Virtual Machines.localized',
@@ -255,7 +256,7 @@ def deploy_ova(ova_name):
 			info('OVA Unpacking completed!')
 			info('starting the VM')
 			try:
-				call([vmrun, 'start', vm_dir + os.sep + vmname + '.vmwarevm'])
+				call([vmrun, 'start', vm_dir + os.sep + vmname + os.sep + vmname + '.vmx'])
 				return True
 			except:
 				error("Starting VM Failed.")
