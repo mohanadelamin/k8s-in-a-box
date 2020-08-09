@@ -16,12 +16,13 @@ import requests
 import time
 from platform import system
 from subprocess import call
+from paramiko import ECDSAKey as ECDSA_Key
 from paramiko.client import SSHClient as SSH_Client
 from paramiko.ssh_exception import \
 	BadHostKeyException as SSH_BadHostKeyException, \
 	AuthenticationException as SSH_AuthenticationException, \
 	SSHException as SSH_SSHException
-
+from base64 import decodebytes
 from logging import basicConfig as logging_basicConfig, \
 	addLevelName as logging_addLevelName, \
 	getLogger as logging_getLogger, \
@@ -102,7 +103,8 @@ LAB_INFO = {
 		'ova'	: 'k8s-lab-v1.ova',
 		'user'	: 'root',
 		'pass'	: 'PaloAlto!123',
-		'ip'	: '192.168.55.144'
+		'ip'	: '192.168.55.144',
+		'key'	:  b"""AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBA3vNns+TyELNkOk7N/+jpqLR4dmtDM+HrkBTW2bUPClySrnM8dAWmBMlb6N/IRTkHKk+uWKECiOxnr1M7Ih/HU="""
 	},
 	'ova_repo'	: 'https://www.github.com',
 	'windows'	: {
@@ -137,10 +139,11 @@ def custom_signal_handler(signal, frame):
 	sys.exit(1)
 
 
-def ssh_login(host, username, password):
-
+def ssh_login(host, username, password, key):
 	r = SSH_Client()
 	r.load_system_host_keys()
+	key_data = ECDSA_Key(data=decodebytes(key))
+	r.get_host_keys().add(host, 'ecdsa-sha2-nistp256', key_data)
 
 	info("Trying to open a SSH connection to {}".format(host))
 
@@ -287,7 +290,11 @@ def main():
 	if deploy_ova(LAB_INFO['k8s-vm']['ova']):
 		info("k8s VM is deployed. waiting for the for ssh to be ready")
 		for x in range(10):
-			ssh_conn = ssh_login(LAB_INFO['k8s-vm']['ip'], LAB_INFO['k8s-vm']['user'], LAB_INFO['k8s-vm']['pass'])
+			ssh_conn = ssh_login(
+				LAB_INFO['k8s-vm']['ip'],
+				LAB_INFO['k8s-vm']['user'],
+				LAB_INFO['k8s-vm']['pass'],
+				LAB_INFO['k8s-vm']['key'])
 			if ssh_conn:
 				break
 			else:
