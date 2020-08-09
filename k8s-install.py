@@ -22,9 +22,6 @@ from paramiko.ssh_exception import \
 	AuthenticationException as SSH_AuthenticationException, \
 	SSHException as SSH_SSHException
 
-from argparse import ArgumentParser
-from datetime import datetime as dt
-from configparser import ConfigParser
 from logging import basicConfig as logging_basicConfig, \
 	addLevelName as logging_addLevelName, \
 	getLogger as logging_getLogger, \
@@ -37,7 +34,6 @@ from logging import basicConfig as logging_basicConfig, \
 	info    as info, \
 	warn    as warn, \
 	error   as error
-from re import search as re_search, sub as re_sub
 from signal import signal as signal_set_handler, SIGINT as signal_SIGINT
 
 K8S_INSTALL_DESCRIPTION = """
@@ -270,33 +266,6 @@ def deploy_ova(ova_name):
 
 def main():
 	fmt_str = '%(asctime)s %(levelname)s: %(message)s'
-	out_dev_istty = getattr(sys.stdout, 'isatty', None)
-
-	if (out_dev_istty is not None) and (out_dev_istty()):
-		if '256color' in os.environ['TERM']:
-			for lvl in LOGGING_LEVELS.keys():
-				logging_addLevelName(
-					LOGGING_LEVELS[lvl]['level'],
-					"\033[{0}{1}".format(
-						LOGGING_LEVELS[lvl]['256color'],
-						LOGGING_LEVELS[lvl]['name'])
-				)
-			fmt_str = '\033[38;5;250m%(asctime)s\033[0m %(levelname)s: ' \
-				'%(message)s\033[0m'
-		elif 'xterm' in os.environ['TERM']:
-			for lvl in LOGGING_LEVELS.keys():
-				logging_addLevelName(
-					LOGGING_LEVELS[lvl]['level'],
-					"\033[{0}{1}".format(
-						LOGGING_LEVELS[lvl]['xterm'],
-						LOGGING_LEVELS[lvl]['name'])
-				)
-			fmt_str = '\033[37m%(asctime)s\033[0m %(levelname)s: ' \
-				'%(message)s\033[0m'
-		else:
-			logging_addLevelName(
-				LOGGING_LEVELS['NORMAL']['level'],
-				LOGGING_LEVELS['NORMAL']['name'])
 
 	logging_basicConfig(
 		format=fmt_str, level=logging_level_INFO,
