@@ -25,14 +25,14 @@ Use python3 if your default python is 2.x
 
 ## Usage
 
-###Step 1. Download the image ova
+### Step 1. Download the image ova
 Image hash:
 ```
 md5    = bfb77c5e74cbb03a1dc738052ada0b89
 SHA1   = 05d13b2f7cb6d2120fedee85013bc7f23efbbf69
 SHA256 = 27a9e9aa3374dd3bb1f9adc6f8f1209920c4ecbcb9c4d62ae88e85d4f330845c
 ```
-###Step 2. Download the script files. The script files need to be downloaded on the same directory as the ova. This is to prevent the script from requesting permission to find the ova in other directories. 
+### Step 2. Download the script files. The script files need to be downloaded on the same directory as the ova. This is to prevent the script from requesting permission to find the ova in other directories. 
 
 MacOS: (--no-check-certificate is needed if you are running behind a firewall with decryption enabled.)
 ```
@@ -48,12 +48,12 @@ $client.DownloadFile("https://raw.githubusercontent.com/mohanadelamin/k8s-in-a-b
 $client.DownloadFile("https://raw.githubusercontent.com/mohanadelamin/k8s-in-a-box/master/k8s-install.py",".\k8s-install.py")
 ```
 
-###Step 3. Install the required  python modules (requests & paramiko)
+### Step 3. Install the required  python modules (requests & paramiko)
 ```
 pip3 install -r requirements.txt 
 ```
 
-###Step 4. Run the script (use python3 instead of python if you default is python 2.7)
+### Step 4. Run the script (use python3 instead of python if you default is python 2.7)
 ```
 python k8s-install.py
 ```
