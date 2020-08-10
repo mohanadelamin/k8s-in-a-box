@@ -18,7 +18,7 @@ python3 --version
 ```
 3- The VM will have static IP 192.168.55.144 and it will be attached to vmnet8.
 
-So VMware fusion or VMware workstation vmnet8 network need to be configured with subnet 192.168.55.0/24. If you already have Lab in the box installed then you are good to go. other wise please change the subnet. so the inastation can finish successfully.
+So VMware fusion or VMware workstation vmnet8 network need to be configured with subnet 192.168.55.0/24. If you already have Lab in the box installed then you are good to go. other wise please change the subnet. so the deployment can finish successfully.
 You can change the network after the installation.
 
 Use python3 if your default python is 2.x
