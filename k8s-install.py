@@ -100,7 +100,7 @@ LOGGING_LEVELS_MAP = {
 LAB_INFO = {
 	'k8s-vm'	: {
 		'name'	: 'k8s-lab',
-		'ova'	: 'k8s-lab-v1.ova',
+		'ova'	: 'k8s-lab.ova',
 		'user'	: 'root',
 		'pass'	: 'PaloAlto!123',
 		'ip'	: '192.168.55.144',
@@ -198,9 +198,14 @@ def get_user_home():
 	return user_home
 
 
+def get_local_path():
+	local_path = os.path.expanduser(".")
+	return local_path
+
+
 def find_ova(ova_name):
-	user_home = get_user_home()
-	for base, dirs, files, in os.walk(user_home):
+	search_path = get_local_path()
+	for base, dirs, files, in os.walk(search_path):
 		if ova_name in files:
 			return os.path.join(base, ova_name)
 
